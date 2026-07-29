@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Custom Nav Bar</string>
+    <string name="service_name">Custom navigation bar</string>
+    <string name="service_description">Shows Back, Home, and Recents buttons using an accessibility overlay.</string>
+</resources>
