@@ -8,6 +8,10 @@ on:
     paths:
       - 'r2d2-flipper-controller/**'
       - '.github/workflows/r2d2-flipper-build.yml'
+  pull_request:
+    paths:
+      - 'r2d2-flipper-controller/**'
+      - '.github/workflows/r2d2-flipper-build.yml'
 
 jobs:
   build:
