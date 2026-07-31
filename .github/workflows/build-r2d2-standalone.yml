@@ -1,0 +1,45 @@
+name: Build standalone R2-D2 Flipper firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/r2d2-standalone-flipper
+    paths:
+      - 'r2d2-standalone-flipper/**'
+      - '.github/workflows/build-r2d2-standalone.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out controller project
+        uses: actions/checkout@v4
+
+      - name: Check out stable Flipper firmware
+        uses: actions/checkout@v4
+        with:
+          repository: flipperdevices/flipperzero-firmware
+          ref: 1.4.3
+          path: firmware
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Apply R2-D2 app and BLE central patch
+        run: python3 r2d2-standalone-flipper/scripts/patch_firmware.py firmware
+
+      - name: Build updater package with BLE Full stack
+        working-directory: firmware
+        run: ./fbt updater_package COMPACT=1 DEBUG=0 DIST_SUFFIX=r2d2
+
+      - name: Collect firmware package
+        run: |
+          mkdir -p artifacts
+          find firmware/dist -type f \( -name '*.tgz' -o -name '*.dfu' \) -print -exec cp {} artifacts/ \;
+          test -n "$(find artifacts -type f -print -quit)"
+
+      - name: Upload standalone firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: R2D2-Standalone-Flipper-Firmware
+          path: artifacts/*
