@@ -1,6 +1,8 @@
 #pragma once
 
 #include <furi.h>
+#include <app_common.h>
+#include <ble/ble.h>
 #include <furi_ble/event_dispatcher.h>
 #include "r2d2_events.h"
 
