@@ -1,0 +1,10 @@
+App(
+    appid="r2d2_controller",
+    name="R2-D2",
+    apptype=FlipperAppType.APP,
+    entry_point="r2d2_controller_app",
+    targets=["f7"],
+    requires=["bt"],
+    stack_size=5 * 1024,
+    order=90,
+)
