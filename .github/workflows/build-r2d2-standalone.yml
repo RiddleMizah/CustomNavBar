@@ -8,6 +8,12 @@ on:
     paths:
       - 'r2d2-standalone-flipper/**'
       - '.github/workflows/build-r2d2-standalone.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'r2d2-standalone-flipper/**'
+      - '.github/workflows/build-r2d2-standalone.yml'
 
 jobs:
   build:
