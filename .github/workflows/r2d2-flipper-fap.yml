@@ -1,0 +1,33 @@
+name: Build R2-D2 Flipper FAP
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/r2d2-flipper-controller
+    paths:
+      - 'r2d2-flipper-controller/flipper-app/**'
+      - '.github/workflows/r2d2-flipper-fap.yml'
+  pull_request:
+    paths:
+      - 'r2d2-flipper-controller/flipper-app/**'
+      - '.github/workflows/r2d2-flipper-fap.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Flipper app
+        id: build-app
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        with:
+          sdk-channel: release
+          app-dir: r2d2-flipper-controller/flipper-app
+
+      - name: Upload FAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: R2D2-Flipper-Remote-FAP
+          path: ${{ steps.build-app.outputs.fap-artifacts }}
