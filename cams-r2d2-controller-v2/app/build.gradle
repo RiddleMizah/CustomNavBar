@@ -2,16 +2,26 @@ plugins {
     id 'com.android.application'
 }
 
+def configuredControllerName = (project.findProperty('controllerName') ?: 'Cam').toString()
+def escapedControllerName = configuredControllerName
+        .replace('\\', '\\\\')
+        .replace('"', '\\"')
+
 android {
     namespace 'com.riddle.camsr2d2'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.riddle.camsr2d2'
+        applicationId 'com.riddle.r2d2controller'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName '2.0.0'
+        versionCode 3
+        versionName '2.1.0'
+        buildConfigField 'String', 'DEFAULT_CONTROLLER_NAME', "\"${escapedControllerName}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {
