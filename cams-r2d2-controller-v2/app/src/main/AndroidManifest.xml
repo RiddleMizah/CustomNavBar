@@ -23,7 +23,7 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_cams_droid"
         android:roundIcon="@drawable/ic_cams_droid"
-        android:label="R2-D2 Controller"
+        android:label="Cam's R2-D2 Controller"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
