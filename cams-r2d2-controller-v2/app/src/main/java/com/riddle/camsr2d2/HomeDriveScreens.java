@@ -27,9 +27,12 @@ final class HomeDriveScreens {
                 "Connect R2-D2, drive him around, play a dance, or teach him a brand-new routine.",
                 16f, false, "#60758D"));
         Button connect = Ui.button(app,
-                app.isR2Ready() ? "R2-D2 is connected" : "Connect R2-D2",
-                app.isR2Ready() ? "#1D9A62" : "#1677D2", "#FFFFFF", 17f);
-        connect.setOnClickListener(v -> app.requestConnection());
+                app.isR2Ready() ? "Disconnect R2-D2" : "Connect R2-D2",
+                app.isR2Ready() ? "#D63A46" : "#1677D2", "#FFFFFF", 17f);
+        connect.setOnClickListener(v -> {
+            if (app.isR2Ready()) app.disconnectR2D2();
+            else app.requestConnection();
+        });
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.dp(app, 220), Ui.dp(app, 52));
         cp.setMargins(0, Ui.dp(app, 18), 0, 0);
         hero.addView(connect, cp);
