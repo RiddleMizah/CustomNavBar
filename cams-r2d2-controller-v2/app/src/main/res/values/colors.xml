@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="navy">#0A2445</color>
+    <color name="blue">#1677D2</color>
+    <color name="blue_dark">#0A4D96</color>
+    <color name="sky">#EAF5FF</color>
+    <color name="panel">#F7FAFD</color>
+    <color name="ink">#10233B</color>
+    <color name="muted">#60758D</color>
+    <color name="yellow">#FFC83D</color>
+    <color name="danger">#D63A46</color>
+    <color name="success">#1D9A62</color>
+</resources>
