@@ -14,6 +14,7 @@ android {
     signingConfigs {
         community {
             storeFile rootProject.file('signing/r2d2-community.keystore')
+            storeType 'PKCS12'
             storePassword 'r2d2controller'
             keyAlias 'r2d2controller'
             keyPassword 'r2d2controller'
