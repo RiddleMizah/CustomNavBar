@@ -46,6 +46,18 @@ final class HomeDriveScreens {
                 () -> app.showScreen(MainActivity.DANCES)), Ui.gridCell(app));
         grid.addView(quickCard(app, "Make a Move", "Record and replay your own routine.", "CREATE",
                 app::startRecording), Ui.gridCell(app));
+        if (app.preferences().tiltEnabled()) {
+            grid.addView(quickCard(app, "Tilt Drive", "Steer by gently tilting the tablet.", "TILT",
+                    () -> app.showScreen(MainActivity.TILT)), Ui.gridCell(app));
+        }
+        if (app.preferences().builderEnabled()) {
+            grid.addView(quickCard(app, "Routine Builder", "Build moves with colorful action blocks.", "BUILD",
+                    () -> app.showScreen(MainActivity.BUILDER)), Ui.gridCell(app));
+        }
+        if (app.preferences().voiceEnabled()) {
+            grid.addView(quickCard(app, "Voice Commands", "Tell R2-D2 what to do.", "VOICE",
+                    () -> app.showScreen(MainActivity.VOICE)), Ui.gridCell(app));
+        }
         page.addView(grid);
         return scroll;
     }
