@@ -15,6 +15,7 @@ final class MotionController implements RoutinePlayer.Executor {
     private ActionType activeMotion;
     private Runnable pendingMotor;
     private Runnable activeRoutineTimer;
+    private boolean activeMotionRecorded;
 
     MotionController(Context context, R2D2Client client, RoutineRecorder recorder) {
         this.context = context;
@@ -23,21 +24,28 @@ final class MotionController implements RoutinePlayer.Executor {
     }
 
     void startManual(ActionType action) {
+        startContinuous(action, true);
+    }
+
+    void startContinuous(ActionType action, boolean record) {
         if (!client.isReady()) {
             toast("Connect R2-D2 first.");
             return;
         }
+        if (action == null || !action.motion) return;
         cancelPendingMotor();
         activeMotion = action;
-        recorder.startMotion(action);
+        activeMotionRecorded = record;
+        if (record) recorder.startMotion(action);
         sendMotionStart(action, null);
-        AppLog.add("Manual motion: " + action.label + ".");
+        AppLog.add((record ? "Manual motion: " : "Assisted motion: ") + action.label + ".");
     }
 
     void stopManual() {
         cancelPendingMotor();
-        if (activeMotion != null) recorder.stopMotion();
+        if (activeMotion != null && activeMotionRecorded) recorder.stopMotion();
         activeMotion = null;
+        activeMotionRecorded = false;
         sendStop();
     }
 
@@ -130,6 +138,7 @@ final class MotionController implements RoutinePlayer.Executor {
             activeRoutineTimer = null;
         }
         activeMotion = null;
+        activeMotionRecorded = false;
         sendStop();
         AppLog.add("Emergency stop sent.");
     }

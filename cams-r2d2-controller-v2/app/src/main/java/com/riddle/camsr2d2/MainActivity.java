@@ -12,6 +12,8 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -24,6 +26,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -35,11 +38,18 @@ public final class MainActivity extends Activity implements
     static final int DRIVE = 1;
     static final int DANCES = 2;
     static final int MY_MOVES = 3;
-    static final int PARENT = 4;
+    static final int TILT = 4;
+    static final int BUILDER = 5;
+    static final int VOICE = 6;
+    static final int PARENT = 7;
 
-    private static final int PERMISSION_REQUEST = 1001;
+    private static final int BLUETOOTH_PERMISSION_REQUEST = 1001;
+    private static final int MICROPHONE_PERMISSION_REQUEST = 1002;
+
     private final RoutineRecorder recorder = new RoutineRecorder();
     private final List<Routine> routines = new ArrayList<>();
+    private final List<RoutineStep> builderSteps = new ArrayList<>();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private AppPreferences appPreferences;
     private R2D2Client client;
@@ -53,8 +63,14 @@ public final class MainActivity extends Activity implements
     private Button connectButton;
     private Button disconnectButton;
     private MotionController motion;
+    private TiltController tiltController;
+    private VoiceCommandController voiceController;
+    private VoiceCommandController.Listener pendingVoiceListener;
+    private Runnable voiceStopRunnable;
+    private ActionType tiltAction = ActionType.STOP;
     private String latestStatus = "Not connected";
     private String latestDevice = "";
+    private int currentScreen = HOME;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -90,7 +106,7 @@ public final class MainActivity extends Activity implements
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
         titles.addView(Ui.text(this, controllerTitle(), 23f, true, "#10233B"));
-        titles.addView(Ui.text(this, "Drive • Dance • Create", 13f, false, "#60758D"));
+        titles.addView(Ui.text(this, "Drive • Tilt • Build • Voice", 13f, false, "#60758D"));
         top.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
 
         statusPill = Ui.text(this, latestStatus, 14f, true, "#FFFFFF");
@@ -149,12 +165,15 @@ public final class MainActivity extends Activity implements
         rail.addView(brand);
 
         deviceLabel = Ui.text(this, "R2-D2 not connected", 12f, false, "#BFD6EE");
-        deviceLabel.setPadding(Ui.dp(this, 4), Ui.dp(this, 10), Ui.dp(this, 4), Ui.dp(this, 18));
+        deviceLabel.setPadding(Ui.dp(this, 4), Ui.dp(this, 10), Ui.dp(this, 4), Ui.dp(this, 12));
         rail.addView(deviceLabel);
         rail.addView(navButton("Home", HOME));
         rail.addView(navButton("Drive", DRIVE));
+        if (appPreferences.tiltEnabled()) rail.addView(navButton("Tilt Drive", TILT));
         rail.addView(navButton("Dances", DANCES));
         rail.addView(navButton("My Moves", MY_MOVES));
+        if (appPreferences.builderEnabled()) rail.addView(navButton("Routine Builder", BUILDER));
+        if (appPreferences.voiceEnabled()) rail.addView(navButton("Voice Commands", VOICE));
         rail.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1f));
 
         Button parent = Ui.button(this, "🔒 Parent Mode", "#12375F", "#FFFFFF", 14f);
@@ -168,27 +187,40 @@ public final class MainActivity extends Activity implements
     }
 
     private Button navButton(String title, int screen) {
-        Button button = Ui.button(this, title, "#12375F", "#FFFFFF", 16f);
+        Button button = Ui.button(this, title, "#12375F", "#FFFFFF", 15f);
         button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         button.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 12), 0);
         button.setOnClickListener(v -> showScreen(screen));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, Ui.dp(this, 54));
-        params.setMargins(0, Ui.dp(this, 5), 0, 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, Ui.dp(this, 48));
+        params.setMargins(0, Ui.dp(this, 4), 0, 0);
         button.setLayoutParams(params);
         return button;
     }
 
     void showScreen(int screen) {
+        stopFeatureSessions();
+        if (screen == TILT && !appPreferences.tiltEnabled()) screen = HOME;
+        if (screen == BUILDER && !appPreferences.builderEnabled()) screen = HOME;
+        if (screen == VOICE && !appPreferences.voiceEnabled()) screen = HOME;
+        currentScreen = screen;
         content.removeAllViews();
         View next;
         if (screen == DRIVE) next = HomeDriveScreens.drive(this);
         else if (screen == DANCES) next = RoutineScreens.dances(this);
         else if (screen == MY_MOVES) next = RoutineScreens.myMoves(this);
+        else if (screen == TILT) next = TiltDriveScreen.build(this);
+        else if (screen == BUILDER) next = RoutineBuilderScreen.build(this);
+        else if (screen == VOICE) next = VoiceCommandScreen.build(this);
         else if (screen == PARENT) next = ParentScreen.build(this);
         else next = HomeDriveScreens.home(this);
         content.addView(next, new FrameLayout.LayoutParams(-1, -1));
     }
 
+    void refreshInterface() {
+        recreate();
+    }
+
+    AppPreferences preferences() { return appPreferences; }
     boolean isR2Ready() { return client.isReady(); }
     boolean isRecording() { return recorder.isRecording(); }
     List<Routine> customRoutines() { return routines; }
@@ -205,7 +237,7 @@ public final class MainActivity extends Activity implements
 
         new AlertDialog.Builder(this)
                 .setTitle("Change controller name")
-                .setMessage("This changes the name shown inside the app. The launcher remains R2-D2 Controller.")
+                .setMessage("This changes the name shown inside the app. The installed launcher name stays Cam's R2-D2 Controller.")
                 .setView(input)
                 .setPositiveButton("Save", (dialog, which) -> {
                     String oldName = controllerName();
@@ -241,7 +273,7 @@ public final class MainActivity extends Activity implements
         }
         for (String permission : permissions) {
             if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(permissions, PERMISSION_REQUEST);
+                requestPermissions(permissions, BLUETOOTH_PERMISSION_REQUEST);
                 return;
             }
         }
@@ -251,17 +283,32 @@ public final class MainActivity extends Activity implements
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode != PERMISSION_REQUEST) return;
-        for (int result : results) {
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                toastMessage("Nearby devices permission is required to find R2-D2.");
-                return;
+        if (requestCode == BLUETOOTH_PERMISSION_REQUEST) {
+            for (int result : results) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    toastMessage("Nearby devices permission is required to find R2-D2.");
+                    return;
+                }
+            }
+            client.startScan();
+            return;
+        }
+        if (requestCode == MICROPHONE_PERMISSION_REQUEST) {
+            boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+            VoiceCommandController.Listener listener = pendingVoiceListener;
+            pendingVoiceListener = null;
+            if (!granted) {
+                toastMessage("Microphone permission is required for voice commands.");
+                if (listener != null) listener.onError("Microphone permission was not granted.");
+            } else if (listener != null && currentScreen == VOICE) {
+                startVoiceController(listener);
             }
         }
-        client.startScan();
     }
 
     void disconnectR2D2() {
+        stopFeatureSessions();
+        cancelVoiceMotion();
         if (player != null && player.isPlaying()) player.stop();
         if (recorder.isRecording()) {
             recorder.cancel();
@@ -277,11 +324,13 @@ public final class MainActivity extends Activity implements
     }
 
     void reconnect() {
+        stopFeatureSessions();
         client.disconnect();
         requestConnection();
     }
 
     void startRecording() {
+        stopFeatureSessions();
         if (player.isPlaying()) player.stop();
         recorder.start();
         recordingBanner.setVisibility(View.VISIBLE);
@@ -307,6 +356,8 @@ public final class MainActivity extends Activity implements
     }
 
     void playRoutine(Routine routine) {
+        stopFeatureSessions();
+        cancelVoiceMotion();
         if (!client.isReady()) {
             toastMessage("Connect R2-D2 first.");
             return;
@@ -319,13 +370,268 @@ public final class MainActivity extends Activity implements
     }
 
     void startManualMotion(ActionType action) {
+        cancelVoiceMotion();
         if (player.isPlaying()) player.stop();
         motion.startManual(action);
     }
 
     void stopManualMotion() { motion.stopManual(); }
     void performAction(ActionType action, boolean record) { motion.performAction(action, record); }
-    void emergencyStop() { motion.emergencyStop(); }
+
+    void emergencyStop() {
+        cancelVoiceMotion();
+        disarmTilt();
+        if (player != null && player.isPlaying()) player.stop();
+        else if (motion != null) motion.emergencyStop();
+    }
+
+    boolean armTilt(TiltController.Listener screenListener) {
+        if (!appPreferences.tiltEnabled()) return false;
+        if (!client.isReady()) {
+            toastMessage("Connect R2-D2 before arming Tilt Drive.");
+            return false;
+        }
+        if (recorder.isRecording()) {
+            toastMessage("Finish recording before using Tilt Drive.");
+            return false;
+        }
+        if (player.isPlaying()) player.stop();
+        cancelVoiceMotion();
+        disarmTilt();
+        tiltAction = ActionType.STOP;
+        tiltController = new TiltController(this, appPreferences, new TiltController.Listener() {
+            @Override
+            public void onSensorState(boolean available, String sensorName) {
+                screenListener.onSensorState(available, sensorName);
+            }
+
+            @Override
+            public void onReading(float forwardDegrees, float steeringDegrees, ActionType action) {
+                applyTiltAction(action);
+                screenListener.onReading(forwardDegrees, steeringDegrees, action);
+            }
+        });
+        boolean started = tiltController.start();
+        if (started) AppLog.add("Tilt Drive armed.");
+        else tiltController = null;
+        return started;
+    }
+
+    void disarmTilt() {
+        if (tiltController != null) {
+            tiltController.stop();
+            tiltController = null;
+            AppLog.add("Tilt Drive disarmed.");
+        }
+        if (tiltAction != ActionType.STOP && motion != null) motion.stopManual();
+        tiltAction = ActionType.STOP;
+    }
+
+    private void applyTiltAction(ActionType action) {
+        if (!client.isReady()) {
+            disarmTilt();
+            return;
+        }
+        if (action == tiltAction) return;
+        if (tiltAction != ActionType.STOP) motion.stopManual();
+        tiltAction = action;
+        if (action != ActionType.STOP) motion.startContinuous(action, false);
+    }
+
+    void startVoiceListening(VoiceCommandController.Listener listener) {
+        if (!appPreferences.voiceEnabled()) {
+            listener.onError("Voice Commands are disabled in Parent Mode.");
+            return;
+        }
+        if (!client.isReady()) {
+            listener.onError("Connect R2-D2 first.");
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingVoiceListener = listener;
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, MICROPHONE_PERMISSION_REQUEST);
+            return;
+        }
+        startVoiceController(listener);
+    }
+
+    private void startVoiceController(VoiceCommandController.Listener listener) {
+        stopVoiceListening();
+        voiceController = new VoiceCommandController(this, listener);
+        if (!voiceController.start()) voiceController = null;
+    }
+
+    boolean isVoiceListening() {
+        return voiceController != null && voiceController.isListening();
+    }
+
+    void stopVoiceListening() {
+        if (voiceController != null) {
+            voiceController.stop();
+            voiceController = null;
+        }
+    }
+
+    String executeVoicePhrase(String phrase) {
+        String command = phrase.toLowerCase(Locale.US).trim();
+        AppLog.add("Voice command heard: " + phrase + ".");
+
+        if (containsAny(command, "emergency stop", "stop", "freeze", "halt")) {
+            emergencyStop();
+            return "Emergency stop sent.";
+        }
+
+        Routine routine = routineForVoice(command);
+        if (routine != null) {
+            playRoutine(routine);
+            return "Playing " + routine.name + ".";
+        }
+
+        ActionType action = null;
+        if (containsAny(command, "look left", "head left", "turn your head left")) action = ActionType.HEAD_LEFT;
+        else if (containsAny(command, "look right", "head right", "turn your head right")) action = ActionType.HEAD_RIGHT;
+        else if (containsAny(command, "center your head", "head center", "look center", "look straight")) action = ActionType.HEAD_CENTER;
+        else if (containsAny(command, "red light", "lights red", "turn red")) action = ActionType.LIGHT_RED;
+        else if (containsAny(command, "blue light", "lights blue", "turn blue")) action = ActionType.LIGHT_BLUE;
+        else if (containsAny(command, "lights off", "light off", "turn off the lights")) action = ActionType.LIGHTS_OFF;
+        else if (containsAny(command, "whistle", "beep")) action = ActionType.WHISTLE;
+        else if (containsAny(command, "wake up", "wake sound", "hello r2")) action = ActionType.WAKE;
+        else if (containsAny(command, "celebrate", "victory sound", "achievement")) action = ActionType.ACHIEVEMENT;
+        else if (containsAny(command, "go forward", "move forward", "forward", "go ahead")) action = ActionType.FORWARD;
+        else if (containsAny(command, "go backward", "move backward", "reverse", "back up", "backward")) action = ActionType.REVERSE;
+        else if (containsAny(command, "turn left", "spin left", "go left", "left")) action = ActionType.TURN_LEFT;
+        else if (containsAny(command, "turn right", "spin right", "go right", "right")) action = ActionType.TURN_RIGHT;
+
+        if (action == null) return "Command not recognized. Try “go forward,” “whistle,” or “happy dance.”";
+        if (action.motion) {
+            if (!appPreferences.voiceMotionEnabled()) {
+                return "Movement voice commands are disabled in Parent Mode.";
+            }
+            if (player.isPlaying()) player.stop();
+            disarmTilt();
+            cancelVoiceMotion();
+            motion.startContinuous(action, false);
+            voiceStopRunnable = () -> {
+                motion.stopManual();
+                voiceStopRunnable = null;
+            };
+            handler.postDelayed(voiceStopRunnable, appPreferences.voiceMotionDurationMs());
+            return action.label + " for " + appPreferences.voiceMotionDurationMs() + " ms, then stop.";
+        }
+        performAction(action, false);
+        return action.label + " sent.";
+    }
+
+    private Routine routineForVoice(String command) {
+        String id = null;
+        if (containsAny(command, "happy dance", "dance party", "do a dance", "dance")) id = "happy-dance";
+        else if (containsAny(command, "victory spin", "spin celebration")) id = "victory-spin";
+        else if (containsAny(command, "patrol mode", "start patrol", "patrol")) id = "patrol";
+        else if (containsAny(command, "silly wiggle", "wiggle")) id = "silly-wiggle";
+        else if (containsAny(command, "nervous droid", "act nervous")) id = "nervous-droid";
+        else if (containsAny(command, "bedtime", "go to sleep", "sleep mode")) id = "bedtime";
+        if (id == null) return null;
+        for (Routine routine : PresetRoutines.all()) {
+            if (routine.id.equals(id)) return routine;
+        }
+        return null;
+    }
+
+    private boolean containsAny(String value, String... options) {
+        for (String option : options) if (value.contains(option)) return true;
+        return false;
+    }
+
+    private void cancelVoiceMotion() {
+        if (voiceStopRunnable != null) {
+            handler.removeCallbacks(voiceStopRunnable);
+            voiceStopRunnable = null;
+            if (motion != null) motion.stopManual();
+        }
+    }
+
+    List<RoutineStep> builderSteps() {
+        return Collections.unmodifiableList(builderSteps);
+    }
+
+    void addBuilderStep(ActionType action) {
+        long delay = builderSteps.isEmpty() ? 0L : appPreferences.builderDefaultDelayMs();
+        long duration = action.motion ? appPreferences.builderMotionDurationMs() : 0L;
+        builderSteps.add(new RoutineStep(action, delay, duration));
+        showScreen(BUILDER);
+    }
+
+    void removeBuilderStep(int index) {
+        if (index >= 0 && index < builderSteps.size()) builderSteps.remove(index);
+        showScreen(BUILDER);
+    }
+
+    void moveBuilderStep(int index, int direction) {
+        int target = index + direction;
+        if (index >= 0 && index < builderSteps.size() && target >= 0 && target < builderSteps.size()) {
+            Collections.swap(builderSteps, index, target);
+        }
+        showScreen(BUILDER);
+    }
+
+    void updateBuilderStep(int index, long delayMs, long durationMs) {
+        if (index >= 0 && index < builderSteps.size()) {
+            RoutineStep old = builderSteps.get(index);
+            builderSteps.set(index, new RoutineStep(old.action, delayMs, durationMs));
+        }
+        showScreen(BUILDER);
+    }
+
+    void previewBuilderRoutine() {
+        if (builderSteps.isEmpty()) {
+            toastMessage("Add at least one block first.");
+            return;
+        }
+        playRoutine(Routine.custom("Builder Preview", new ArrayList<>(builderSteps)));
+    }
+
+    void saveBuilderRoutine() {
+        if (builderSteps.isEmpty()) {
+            toastMessage("Add at least one block first.");
+            return;
+        }
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint(controllerPossessive() + " Built Routine");
+        new AlertDialog.Builder(this)
+                .setTitle("Name this routine")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) name = controllerPossessive() + " Built Routine " + (routines.size() + 1);
+                    routines.add(0, Routine.custom(name, new ArrayList<>(builderSteps)));
+                    store.save(routines);
+                    builderSteps.clear();
+                    AppLog.add("Saved visual routine: " + name + ".");
+                    showScreen(MY_MOVES);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    void confirmClearBuilder() {
+        if (builderSteps.isEmpty()) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Clear the routine builder?")
+                .setMessage("The unsaved action blocks will be removed.")
+                .setPositiveButton("Clear", (dialog, which) -> {
+                    builderSteps.clear();
+                    showScreen(BUILDER);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void stopFeatureSessions() {
+        disarmTilt();
+        stopVoiceListening();
+        pendingVoiceListener = null;
+    }
 
     @Override
     public void onRoutineStarted(Routine routine) {
@@ -357,6 +663,7 @@ public final class MainActivity extends Activity implements
                 checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
         boolean connect = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+        boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         boolean ble = getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
         return "Controller name: " + controllerName() + "\n" +
                 "App version: " + version + "\n" +
@@ -366,9 +673,15 @@ public final class MainActivity extends Activity implements
                 "BLE supported: " + ble + "\n" +
                 "Bluetooth scan permission: " + scan + "\n" +
                 "Bluetooth connect permission: " + connect + "\n" +
+                "Microphone permission: " + mic + "\n" +
                 "Status: " + latestStatus + "\n" +
                 "Device: " + (latestDevice.isEmpty() ? "none" : latestDevice) + "\n" +
                 "Saved routines: " + routines.size() + "\n" +
+                "Tilt / Builder / Voice visible: " + appPreferences.tiltEnabled() + " / " +
+                        appPreferences.builderEnabled() + " / " + appPreferences.voiceEnabled() + "\n" +
+                "Tilt deadzone / smoothing: " + appPreferences.tiltDeadzoneDegrees() + "° / " +
+                        appPreferences.tiltSmoothingPercent() + "%\n" +
+                "Voice movement duration: " + appPreferences.voiceMotionDurationMs() + " ms\n" +
                 "Service UUID: " + Protocol.SERVICE_UUID + "\n" +
                 "Write UUID: " + Protocol.WRITE_UUID + "\n" +
                 "Notify UUID: " + Protocol.NOTIFY_UUID;
@@ -413,8 +726,12 @@ public final class MainActivity extends Activity implements
                 disconnectButton.setEnabled(connected);
                 disconnectButton.setAlpha(connected ? 1f : 0.45f);
             }
-            if (!connected && deviceLabel != null) deviceLabel.setText("R2-D2 not connected");
-            if (!connected) latestDevice = "";
+            if (!connected) {
+                stopFeatureSessions();
+                cancelVoiceMotion();
+                if (deviceLabel != null) deviceLabel.setText("R2-D2 not connected");
+                latestDevice = "";
+            }
         });
     }
 
@@ -424,6 +741,9 @@ public final class MainActivity extends Activity implements
 
     @Override
     protected void onDestroy() {
+        stopFeatureSessions();
+        cancelVoiceMotion();
+        handler.removeCallbacksAndMessages(null);
         if (player != null && player.isPlaying()) player.stop();
         if (client != null) client.disconnect();
         super.onDestroy();
