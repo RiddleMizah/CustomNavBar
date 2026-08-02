@@ -51,6 +51,7 @@ public final class MainActivity extends Activity implements
     private TextView recordingBanner;
     private TextView playbackBanner;
     private Button connectButton;
+    private Button disconnectButton;
     private MotionController motion;
     private String latestStatus = "Not connected";
     private String latestDevice = "";
@@ -100,9 +101,17 @@ public final class MainActivity extends Activity implements
 
         connectButton = Ui.button(this, "Connect R2-D2", "#1677D2", "#FFFFFF", 15f);
         connectButton.setOnClickListener(v -> requestConnection());
-        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.dp(this, 170), Ui.dp(this, 46));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.dp(this, 155), Ui.dp(this, 46));
         cp.setMargins(Ui.dp(this, 10), 0, 0, 0);
         top.addView(connectButton, cp);
+
+        disconnectButton = Ui.button(this, "Disconnect", "#D63A46", "#FFFFFF", 14f);
+        disconnectButton.setEnabled(false);
+        disconnectButton.setAlpha(0.45f);
+        disconnectButton.setOnClickListener(v -> disconnectR2D2());
+        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(Ui.dp(this, 125), Ui.dp(this, 46));
+        dp.setMargins(Ui.dp(this, 8), 0, 0, 0);
+        top.addView(disconnectButton, dp);
 
         recordingBanner = Ui.banner(this, "● RECORDING — tap here when finished", "#D63A46");
         recordingBanner.setVisibility(View.GONE);
@@ -210,6 +219,10 @@ public final class MainActivity extends Activity implements
     }
 
     void requestConnection() {
+        if (client.isReady()) {
+            toastMessage("R2-D2 is already connected.");
+            return;
+        }
         BluetoothAdapter adapter = client.adapter();
         if (adapter == null) {
             toastMessage("Bluetooth is not available on this tablet.");
@@ -246,6 +259,21 @@ public final class MainActivity extends Activity implements
             }
         }
         client.startScan();
+    }
+
+    void disconnectR2D2() {
+        if (player != null && player.isPlaying()) player.stop();
+        if (recorder.isRecording()) {
+            recorder.cancel();
+            if (recordingBanner != null) recordingBanner.setVisibility(View.GONE);
+        }
+        if (motion != null) motion.emergencyStop();
+        client.disconnect();
+        latestDevice = "";
+        if (deviceLabel != null) deviceLabel.setText("R2-D2 not connected");
+        AppLog.add("R2-D2 disconnected by the user.");
+        toastMessage("R2-D2 disconnected.");
+        showScreen(HOME);
     }
 
     void reconnect() {
@@ -380,8 +408,13 @@ public final class MainActivity extends Activity implements
     @Override
     public void onConnected(boolean connected) {
         runOnUiThread(() -> {
-            if (connectButton != null) connectButton.setText(connected ? "Connected" : "Connect R2-D2");
+            if (connectButton != null) connectButton.setEnabled(!connected);
+            if (disconnectButton != null) {
+                disconnectButton.setEnabled(connected);
+                disconnectButton.setAlpha(connected ? 1f : 0.45f);
+            }
             if (!connected && deviceLabel != null) deviceLabel.setText("R2-D2 not connected");
+            if (!connected) latestDevice = "";
         });
     }
 
