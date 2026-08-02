@@ -2,6 +2,7 @@ package com.riddle.camsr2d2;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -15,6 +16,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -23,6 +25,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class MainActivity extends Activity implements
         R2D2Client.Callback,
@@ -38,6 +41,7 @@ public final class MainActivity extends Activity implements
     private final RoutineRecorder recorder = new RoutineRecorder();
     private final List<Routine> routines = new ArrayList<>();
 
+    private AppPreferences appPreferences;
     private R2D2Client client;
     private RoutineStore store;
     private RoutinePlayer player;
@@ -55,6 +59,7 @@ public final class MainActivity extends Activity implements
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        appPreferences = new AppPreferences(this);
         store = new RoutineStore(this);
         routines.addAll(store.load());
         client = new R2D2Client(this, this);
@@ -62,7 +67,7 @@ public final class MainActivity extends Activity implements
         player = new RoutinePlayer(motion, this);
         setContentView(buildShell());
         showScreen(HOME);
-        AppLog.add("Cam's R2-D2 Controller V2 opened.");
+        AppLog.add(controllerTitle() + " opened.");
     }
 
     private View buildShell() {
@@ -83,7 +88,7 @@ public final class MainActivity extends Activity implements
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(Ui.text(this, "Cam's R2-D2 Controller", 23f, true, "#10233B"));
+        titles.addView(Ui.text(this, controllerTitle(), 23f, true, "#10233B"));
         titles.addView(Ui.text(this, "Drive • Dance • Create", 13f, false, "#60758D"));
         top.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
 
@@ -129,7 +134,7 @@ public final class MainActivity extends Activity implements
         brand.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 62), Ui.dp(this, 62)));
         LinearLayout name = new LinearLayout(this);
         name.setOrientation(LinearLayout.VERTICAL);
-        name.addView(Ui.text(this, "CAM'S", 13f, true, "#FFC83D"));
+        name.addView(Ui.text(this, controllerPossessive().toUpperCase(Locale.US), 13f, true, "#FFC83D"));
         name.addView(Ui.text(this, "R2-D2", 23f, true, "#FFFFFF"));
         brand.addView(name);
         rail.addView(brand);
@@ -178,6 +183,31 @@ public final class MainActivity extends Activity implements
     boolean isR2Ready() { return client.isReady(); }
     boolean isRecording() { return recorder.isRecording(); }
     List<Routine> customRoutines() { return routines; }
+    String controllerName() { return appPreferences.controllerName(); }
+    String controllerPossessive() { return appPreferences.possessiveName(); }
+    String controllerTitle() { return appPreferences.controllerTitle(); }
+
+    void editControllerName() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(controllerName());
+        input.setSelectAllOnFocus(true);
+        input.setHint("Enter a name");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Change controller name")
+                .setMessage("This changes the name shown inside the app. The launcher remains R2-D2 Controller.")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String oldName = controllerName();
+                    appPreferences.setControllerName(input.getText().toString());
+                    AppLog.add("Controller name changed from " + oldName + " to " + controllerName() + ".");
+                    toastMessage("Name changed to " + controllerName() + ".");
+                    recreate();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
     void requestConnection() {
         BluetoothAdapter adapter = client.adapter();
@@ -300,7 +330,8 @@ public final class MainActivity extends Activity implements
         boolean connect = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
         boolean ble = getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
-        return "App version: " + version + "\n" +
+        return "Controller name: " + controllerName() + "\n" +
+                "App version: " + version + "\n" +
                 "Package: " + getPackageName() + "\n" +
                 "Android: " + Build.VERSION.RELEASE + " / API " + Build.VERSION.SDK_INT + "\n" +
                 "Device: " + Build.MANUFACTURER + " " + Build.MODEL + "\n" +
@@ -320,7 +351,7 @@ public final class MainActivity extends Activity implements
                 "\nLog:\n" + AppLog.text();
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard != null) {
-            clipboard.setPrimaryClip(ClipData.newPlainText("Cam's R2-D2 diagnostics", report));
+            clipboard.setPrimaryClip(ClipData.newPlainText("R2-D2 Controller diagnostics", report));
             toastMessage("Diagnostics copied.");
         }
     }
