@@ -42,7 +42,7 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon -p cams-r2d2-controller-v2 :app:assembleDebug
 
-      - name: Build release APK
+      - name: Build installable release APK
         run: gradle --no-daemon -p cams-r2d2-controller-v2 :app:assembleRelease
 
       - name: Upload APKs
@@ -51,4 +51,4 @@ jobs:
           name: Cams-R2D2-Controller-V2-APKs
           path: |
             cams-r2d2-controller-v2/app/build/outputs/apk/debug/app-debug.apk
-            cams-r2d2-controller-v2/app/build/outputs/apk/release/app-release-unsigned.apk
+            cams-r2d2-controller-v2/app/build/outputs/apk/release/app-release.apk
