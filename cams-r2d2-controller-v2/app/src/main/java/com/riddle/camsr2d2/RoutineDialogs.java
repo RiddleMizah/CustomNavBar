@@ -27,14 +27,14 @@ final class RoutineDialogs {
             return;
         }
         EditText input = new EditText(app);
-        input.setHint("Cam's Awesome Dance");
+        input.setHint(app.controllerPossessive() + " Awesome Dance");
         input.setSingleLine(true);
         new AlertDialog.Builder(app)
                 .setTitle("Name this routine")
                 .setView(input)
                 .setPositiveButton("Save", (dialog, which) -> {
                     String title = input.getText().toString().trim();
-                    if (title.isEmpty()) title = "Cam's Move " + (routines.size() + 1);
+                    if (title.isEmpty()) title = app.controllerPossessive() + " Move " + (routines.size() + 1);
                     routines.add(0, Routine.custom(title, steps));
                     store.save(routines);
                     AppLog.add("Saved custom routine: " + title + ".");

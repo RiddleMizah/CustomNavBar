@@ -19,7 +19,7 @@ final class ParentScreen {
 
         page.addView(Ui.text(app, "Parent Mode", 25f, true, "#10233B"));
         page.addView(Ui.text(app,
-                "Technical information, connection tools, diagnostics, and reset options.",
+                "Personalization, connection tools, technical information, diagnostics, and reset options.",
                 14f, false, "#60758D"), Ui.matchWrap(app, 0, 4, 0, 12));
 
         LinearLayout status = Ui.card(app, "#FFFFFF");
@@ -27,23 +27,25 @@ final class ParentScreen {
         status.addView(Ui.text(app, app.technicalSummary(), 13f, false, "#10233B"));
         page.addView(status, Ui.matchWrap(app, 0, 0, 0, 12));
 
-        LinearLayout tools = new LinearLayout(app);
-        tools.setOrientation(LinearLayout.HORIZONTAL);
-        tools.addView(tool(app, "Reconnect", app::reconnect), Ui.weightedButton(app));
-        tools.addView(tool(app, "Emergency Stop", app::emergencyStop), Ui.weightedButton(app));
-        tools.addView(tool(app, "Copy Diagnostics", app::copyDiagnostics), Ui.weightedButton(app));
-        tools.addView(tool(app, "Clear Logs", () -> {
+        LinearLayout connectionTools = new LinearLayout(app);
+        connectionTools.setOrientation(LinearLayout.HORIZONTAL);
+        connectionTools.addView(tool(app, "Change Name", app::editControllerName), Ui.weightedButton(app));
+        connectionTools.addView(tool(app, "Reconnect", app::reconnect), Ui.weightedButton(app));
+        connectionTools.addView(dangerTool(app, "Disconnect", app::disconnectR2D2), Ui.weightedButton(app));
+        connectionTools.addView(dangerTool(app, "Emergency Stop", app::emergencyStop), Ui.weightedButton(app));
+        page.addView(connectionTools, Ui.matchWrap(app, 0, 0, 0, 12));
+
+        LinearLayout diagnosticTools = new LinearLayout(app);
+        diagnosticTools.setOrientation(LinearLayout.HORIZONTAL);
+        diagnosticTools.addView(tool(app, "Copy Diagnostics", app::copyDiagnostics), Ui.weightedButton(app));
+        diagnosticTools.addView(tool(app, "Clear Logs", () -> {
             AppLog.clear();
             app.showScreen(MainActivity.PARENT);
         }), Ui.weightedButton(app));
-        page.addView(tools, Ui.matchWrap(app, 0, 0, 0, 12));
-
-        LinearLayout resets = new LinearLayout(app);
-        resets.setOrientation(LinearLayout.HORIZONTAL);
-        resets.addView(tool(app, "Clear Saved Routines", app::confirmClearRoutines), Ui.weightedButton(app));
-        resets.addView(tool(app, "Bluetooth Settings",
+        diagnosticTools.addView(tool(app, "Bluetooth Settings",
                 () -> app.startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS))), Ui.weightedButton(app));
-        page.addView(resets, Ui.matchWrap(app, 0, 0, 0, 12));
+        diagnosticTools.addView(tool(app, "Clear Saved Routines", app::confirmClearRoutines), Ui.weightedButton(app));
+        page.addView(diagnosticTools, Ui.matchWrap(app, 0, 0, 0, 12));
 
         LinearLayout logs = Ui.card(app, "#0A2445");
         logs.setPadding(Ui.dp(app, 14), Ui.dp(app, 12), Ui.dp(app, 14), Ui.dp(app, 12));
@@ -58,6 +60,12 @@ final class ParentScreen {
 
     private static Button tool(MainActivity app, String label, Runnable action) {
         Button button = Ui.button(app, label, "#D9ECFF", "#0A4D96", 13f);
+        button.setOnClickListener(v -> action.run());
+        return button;
+    }
+
+    private static Button dangerTool(MainActivity app, String label, Runnable action) {
+        Button button = Ui.button(app, label, "#FFE2E5", "#A52935", 13f);
         button.setOnClickListener(v -> action.run());
         return button;
     }
