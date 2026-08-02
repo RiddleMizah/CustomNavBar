@@ -1,4 +1,4 @@
-name: Build Cam's R2-D2 Controller V2
+name: Build R2-D2 Controller for Android
 
 on:
   workflow_dispatch:
@@ -45,10 +45,67 @@ jobs:
       - name: Build installable release APK
         run: gradle --no-daemon -p cams-r2d2-controller-v2 :app:assembleRelease
 
+      - name: Prepare standalone repository package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="package/R2D2-Controller-Android"
+          mkdir -p "$ROOT/.github/workflows" "$ROOT/releases"
+          cp -R cams-r2d2-controller-v2/. "$ROOT/"
+          rm -rf "$ROOT/.gradle" "$ROOT/build" "$ROOT/app/build"
+          cp cams-r2d2-controller-v2/app/build/outputs/apk/release/app-release.apk \
+            "$ROOT/releases/R2D2-Controller.apk"
+
+          cat > "$ROOT/.github/workflows/build-apk.yml" <<'WORKFLOW'
+          name: Build Android APK
+
+          on:
+            workflow_dispatch:
+            push:
+              branches: [main]
+            pull_request:
+              branches: [main]
+
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-java@v4
+                  with:
+                    distribution: temurin
+                    java-version: '17'
+                - uses: gradle/actions/setup-gradle@v4
+                  with:
+                    gradle-version: '8.10.2'
+                - uses: android-actions/setup-android@v3
+                - name: Install Android SDK 35
+                  run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+                - name: Build APKs
+                  run: |
+                    gradle --no-daemon :app:assembleDebug
+                    gradle --no-daemon :app:assembleRelease
+                - uses: actions/upload-artifact@v4
+                  with:
+                    name: R2D2-Controller-APKs
+                    path: |
+                      app/build/outputs/apk/debug/app-debug.apk
+                      app/build/outputs/apk/release/app-release.apk
+          WORKFLOW
+
+          cd package
+          zip -qr ../R2D2-Controller-Android.zip R2D2-Controller-Android
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Cams-R2D2-Controller-V2-APKs
+          name: R2D2-Controller-APKs
           path: |
             cams-r2d2-controller-v2/app/build/outputs/apk/debug/app-debug.apk
             cams-r2d2-controller-v2/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload standalone repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: R2D2-Controller-Standalone-Repository
+          path: R2D2-Controller-Android.zip
