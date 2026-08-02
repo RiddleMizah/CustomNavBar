@@ -11,6 +11,15 @@ android {
     namespace 'com.riddle.camsr2d2'
     compileSdk 35
 
+    signingConfigs {
+        community {
+            storeFile rootProject.file('signing/r2d2-community.keystore')
+            storePassword 'r2d2controller'
+            keyAlias 'r2d2controller'
+            keyPassword 'r2d2controller'
+        }
+    }
+
     defaultConfig {
         applicationId 'com.riddle.camsr2d2'
         minSdk 26
@@ -31,7 +40,7 @@ android {
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.community
         }
     }
 
