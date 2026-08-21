@@ -1,0 +1,5 @@
+Cam's R2-D2 Controller v3.2.0 debug build
+Source SHA-256: df6a42bcfb79b8707613dfea924f106d1befcce7da511b116258f551455f45d8
+Commit: 5d7674fd0e43210a4d9c55b4ade5839bcae608a1
+
+1fc71e33847302db54638cdccf5d35cfc1a6fdc2bcf4694ca693b60165d8772a  Cams-R2D2-Controller-v3.2.0-Debug.apk
