@@ -9,11 +9,16 @@ on:
       - cams-r2d2-v3.2-source.part*.b64
       - .github/workflows/cams-r2d2-v32-build.yml
 
+permissions:
+  contents: write
+
 jobs:
   build-debug:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/cams-r2d2-controller-v3.2
 
       - name: Reassemble and verify v3.2 source
         shell: bash
@@ -46,8 +51,23 @@ jobs:
         working-directory: buildsrc
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Rename APK
-        run: cp buildsrc/app/build/outputs/apk/debug/app-debug.apk Cams-R2D2-Controller-v3.2.0-Debug.apk
+      - name: Publish build outputs
+        shell: bash
+        run: |
+          cp buildsrc/app/build/outputs/apk/debug/app-debug.apk Cams-R2D2-Controller-v3.2.0-Debug.apk
+          sha256sum Cams-R2D2-Controller-v3.2.0-Debug.apk > Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt
+          {
+            echo "Cam's R2-D2 Controller v3.2.0 debug build"
+            echo "Source SHA-256: df6a42bcfb79b8707613dfea924f106d1befcce7da511b116258f551455f45d8"
+            echo "Commit: $GITHUB_SHA"
+            echo
+            cat Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt
+          } > Cams-R2D2-Controller-v3.2.0-BUILD-SUCCESS.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Cams-R2D2-Controller-v3.2.0-Source.zip Cams-R2D2-Controller-v3.2.0-Debug.apk Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt Cams-R2D2-Controller-v3.2.0-BUILD-SUCCESS.txt
+          git commit -m 'Publish Cam R2-D2 v3.2 debug build'
+          git push
 
       - uses: actions/upload-artifact@v4
         with:
