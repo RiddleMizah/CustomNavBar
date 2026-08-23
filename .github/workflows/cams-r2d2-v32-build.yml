@@ -1,13 +1,12 @@
-name: Build Cam's R2-D2 v3.2
+name: Build Cam's R2-D2 v3.2.1
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - agent/cams-r2d2-controller-v3.2
+      - agent/cams-r2d2-controller-v3.2.1
     paths:
-      - cams-r2d2-v3.2-source.part*.b64
-      - .github/workflows/cams-r2d2-v32-build.yml
+      - Cams-R2D2-Controller-v3.2.1-Source.zip
 
 permissions:
   contents: write
@@ -18,14 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/cams-r2d2-controller-v3.2
+          ref: agent/cams-r2d2-controller-v3.2.1
 
-      - name: Reassemble and verify v3.2 source
+      - name: Verify v3.2.1 source
         shell: bash
         run: |
-          cat cams-r2d2-v3.2-source.part*.b64 | base64 --decode > Cams-R2D2-Controller-v3.2.0-Source.zip
-          echo 'df6a42bcfb79b8707613dfea924f106d1befcce7da511b116258f551455f45d8  Cams-R2D2-Controller-v3.2.0-Source.zip' | sha256sum -c -
-          unzip -t Cams-R2D2-Controller-v3.2.0-Source.zip
+          echo 'fa8a3e4969b6296be1da489225243bcc3591b8d4e5b671820a53a1001005ea30  Cams-R2D2-Controller-v3.2.1-Source.zip' | sha256sum -c -
+          unzip -t Cams-R2D2-Controller-v3.2.1-Source.zip
 
       - uses: actions/setup-java@v4
         with:
@@ -41,52 +39,46 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 
-      - name: Unpack v3.2 source
+      - name: Unpack v3.2.1 source
         run: |
           rm -rf buildsrc
           mkdir buildsrc
-          unzip -q Cams-R2D2-Controller-v3.2.0-Source.zip -d buildsrc
+          unzip -q Cams-R2D2-Controller-v3.2.1-Source.zip -d buildsrc
 
       - name: Build debug APK
         working-directory: buildsrc
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Publish build outputs
+      - name: Publish verified build outputs
         shell: bash
         run: |
-          cp buildsrc/app/build/outputs/apk/debug/app-debug.apk Cams-R2D2-Controller-v3.2.0-Debug.apk
-          sha256sum Cams-R2D2-Controller-v3.2.0-Debug.apk > Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt
+          cp buildsrc/app/build/outputs/apk/debug/app-debug.apk Cams-R2D2-Controller-v3.2.1-Debug.apk
+          sha256sum Cams-R2D2-Controller-v3.2.1-Debug.apk > Cams-R2D2-Controller-v3.2.1-Debug-SHA256.txt
           {
-            echo "Cam's R2-D2 Controller v3.2.0 debug build"
-            echo "Source SHA-256: df6a42bcfb79b8707613dfea924f106d1befcce7da511b116258f551455f45d8"
+            echo "Cam's R2-D2 Controller v3.2.1 debug build"
+            echo "Source SHA-256: fa8a3e4969b6296be1da489225243bcc3591b8d4e5b671820a53a1001005ea30"
             echo "Commit: $GITHUB_SHA"
             echo
-            cat Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt
-          } > Cams-R2D2-Controller-v3.2.0-BUILD-SUCCESS.txt
+            cat Cams-R2D2-Controller-v3.2.1-Debug-SHA256.txt
+          } > Cams-R2D2-Controller-v3.2.1-BUILD-SUCCESS.txt
 
-          rm -f Cams-R2D2-Controller-v3.2.0-Debug-apk.part*.b64
-          base64 -w 0 Cams-R2D2-Controller-v3.2.0-Debug.apk > Cams-R2D2-Controller-v3.2.0-Debug.apk.b64
+          rm -f Cams-R2D2-Controller-v3.2.1-Debug-apk.part*.b64
+          base64 -w 0 Cams-R2D2-Controller-v3.2.1-Debug.apk > Cams-R2D2-Controller-v3.2.1-Debug.apk.b64
           split -b 20000 -d -a 2 --additional-suffix=.b64 \
-            Cams-R2D2-Controller-v3.2.0-Debug.apk.b64 \
-            Cams-R2D2-Controller-v3.2.0-Debug-apk.part
-          rm Cams-R2D2-Controller-v3.2.0-Debug.apk.b64
+            Cams-R2D2-Controller-v3.2.1-Debug.apk.b64 \
+            Cams-R2D2-Controller-v3.2.1-Debug-apk.part
+          rm Cams-R2D2-Controller-v3.2.1-Debug.apk.b64
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add Cams-R2D2-Controller-v3.2.0-Source.zip \
-            Cams-R2D2-Controller-v3.2.0-Debug.apk \
-            Cams-R2D2-Controller-v3.2.0-Debug-SHA256.txt \
-            Cams-R2D2-Controller-v3.2.0-BUILD-SUCCESS.txt \
-            Cams-R2D2-Controller-v3.2.0-Debug-apk.part*.b64
-          git commit -m 'Publish Cam R2-D2 v3.2 debug build and transfer chunks'
+          git add Cams-R2D2-Controller-v3.2.1-Debug.apk \
+            Cams-R2D2-Controller-v3.2.1-Debug-SHA256.txt \
+            Cams-R2D2-Controller-v3.2.1-BUILD-SUCCESS.txt \
+            Cams-R2D2-Controller-v3.2.1-Debug-apk.part*.b64
+          git commit -m 'Publish Cam R2-D2 v3.2.1 verified debug build'
           git push
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Cams-R2D2-v3.2.0-Debug-APK
-          path: Cams-R2D2-Controller-v3.2.0-Debug.apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Cams-R2D2-v3.2.0-Source
-          path: Cams-R2D2-Controller-v3.2.0-Source.zip
+          name: Cams-R2D2-v3.2.1-Debug-APK
+          path: Cams-R2D2-Controller-v3.2.1-Debug.apk
