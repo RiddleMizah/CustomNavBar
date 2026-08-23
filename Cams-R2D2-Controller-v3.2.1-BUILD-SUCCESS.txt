@@ -1,0 +1,9 @@
+Cam's R2-D2 Controller v3.2.1 FINAL debug build
+Known-good v3.2.0 source SHA-256: df6a42bcfb79b8707613dfea924f106d1befcce7da511b116258f551455f45d8
+Build commit: 946e98855d263506d8a1dd3072fee64892161e1a
+
+Final source:
+a539e59bc0df3caa459d898d1d5faf152c8cea9d073b24f5bbbee65336ba33a9  Cams-R2D2-Controller-v3.2.1-Source.zip
+
+Final APK:
+f5ad93c9bd65e2caea6fd09553b3e4dd939a8d6a9b9fd43afd6c3149b0256c83  Cams-R2D2-Controller-v3.2.1-Debug.apk
